@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	logger "github.com/rs/zerolog/log"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -139,4 +140,30 @@ func updateMap(fileMap map[string][]string, key string, value string) {
 	} else {
 		fileMap[key] = []string{strings.TrimSuffix(value, "/")}
 	}
+}
+
+func WriteSpec(yamlFile []byte) error {
+	workingDir, err := getCurrentFolder()
+	if err != nil {
+		logger.Error().Msgf("Error getting current working directory: %v", err)
+		return err
+	}
+	f, err := os.Create(workingDir + "/" + "spec.yaml")
+	if err != nil {
+		panic(err)
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			logger.Error().Msgf("Error closing file: %v", err)
+		}
+	}(f)
+
+	_, err = io.WriteString(f, string(yamlFile))
+	if err != nil {
+		logger.Error().Msgf("Error writing to file: %v", err)
+		return err
+	}
+
+	return nil
 }
