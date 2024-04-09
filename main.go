@@ -14,7 +14,10 @@ func main() {
 		logger.Error().Msgf("Error finding hidden files: %v", err)
 	}
 
-	fileMap := utils.GetMap(hiddenFilePaths)
+	fileMap, err := utils.GetMap(hiddenFilePaths)
+	if err != nil {
+		logger.Error().Msgf("Error getting map: %v", err)
+	}
 	for key, val := range fileMap {
 		logger.Info().Msgf("%s: [%s]", key, strings.Join(val, ", "))
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	cmd "terraform-spike-type-detection/tf-cmd"
 )
 
 type FilePath string
@@ -55,7 +56,7 @@ func (fp FilePath) getGitFolderPath() string {
 			return folderTree[len(folderTree)-1]
 		}
 	}
-	return gitPath
+	return strings.TrimSuffix(gitPath, "/")
 }
 
 func (fp FilePath) getTerraformFolderPath() string {
@@ -69,7 +70,7 @@ func (fp FilePath) getTerraformFolderPath() string {
 			return folderTree[len(folderTree)-1]
 		}
 	}
-	return terraformPath
+	return strings.TrimSuffix(terraformPath, "/")
 }
 
 func FindHiddenFiles() ([]FilePath, error) {
@@ -115,7 +116,7 @@ func FindHiddenFiles() ([]FilePath, error) {
 	return hiddenDirs, err
 }
 
-func GetMap(filePaths []FilePath) map[string][]string {
+func GetMap(filePaths []FilePath) (map[string][]string, error) {
 	fileMap := make(map[string][]string)
 	for _, path := range filePaths {
 		if path.isGitFolderPath() {
@@ -126,19 +127,41 @@ func GetMap(filePaths []FilePath) map[string][]string {
 
 		if path.isTerraformFolderPath() {
 			terraformPath := path.getTerraformFolderPath()
-			updateMap(fileMap, "terraform", terraformPath)
+			if err := getWorkspaces(terraformPath, fileMap["git"][0], fileMap); err != nil {
+				logger.Error().Msgf("Error getting workspaces: %v", err)
+				return nil, err
+			}
 		}
 	}
-	return fileMap
+	return fileMap, nil
+}
+
+func getWorkspaces(terraformPath string, gitPath string, fileMap map[string][]string) error {
+	if strings.Compare(terraformPath, gitPath) == 0 {
+		workspaces, err := cmd.GetWorkspaces()
+		if err != nil {
+			logger.Error().Msgf("Error getting workspaces: %v", err)
+			return err
+		}
+
+		for _, workspace := range workspaces {
+			if workspace != "" {
+				workspace := terraformPath + "_" + workspace
+				updateMap(fileMap, "terraform", workspace)
+			}
+		}
+
+	}
+	return nil
 }
 
 func updateMap(fileMap map[string][]string, key string, value string) {
 	if _, ok := fileMap[key]; ok {
 		paths := fileMap[key]
-		paths = append(paths, strings.TrimSuffix(value, "/"))
+		paths = append(paths, value)
 		fileMap[key] = paths
 	} else {
-		fileMap[key] = []string{strings.TrimSuffix(value, "/")}
+		fileMap[key] = []string{value}
 	}
 }
 
