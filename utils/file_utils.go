@@ -151,6 +151,30 @@ func getWorkspaces(terraformPath string, gitPath string, fileMap map[string][]st
 			}
 		}
 
+	} else {
+		logger.Info().Msgf("Changing to directory: %s", terraformPath)
+		err := os.Chdir(terraformPath)
+		if err != nil {
+			logger.Error().Msgf("Failed to change directory to %s: %v", terraformPath, err)
+			return err
+		}
+
+		workspaces, err := cmd.GetWorkspaces()
+		if err != nil {
+			logger.Error().Msgf("Error getting workspaces: %v", err)
+			return err
+		}
+
+		for _, workspace := range workspaces {
+			if workspace != "" {
+				workspace := gitPath + "_" + terraformPath + "_" + workspace
+				updateMap(fileMap, "terraform", workspace)
+			}
+		}
+		parentPath := buildParentPath(terraformPath)
+		logger.Info().Msgf("Changing to directory: %s", parentPath)
+		err = os.Chdir(parentPath)
+
 	}
 	return nil
 }
@@ -189,4 +213,50 @@ func WriteSpec(yamlFile []byte) error {
 	}
 
 	return nil
+}
+
+//func isChildPath(parentPath, childPath string) (bool, string, string, error) {
+//	// Clean and resolve the absolute paths
+//	absParentPath, err := filepath.Abs(filepath.Clean(parentPath))
+//	if err != nil {
+//		return false, "", "", err
+//	}
+//	absChildPath, err := filepath.Abs(filepath.Clean(childPath))
+//	if err != nil {
+//		return false, "", "", err
+//	}
+//
+//	// Use Rel to find the relative path from parent to child
+//	relPath, err := filepath.Rel(absParentPath, absChildPath)
+//	if err != nil {
+//		return false, "", "", err
+//	}
+//
+//	// If the relative path starts with "..", the child is not within the parent
+//	// Also, if the relative path is ".", it means both paths are the same
+//	if !filepath.IsAbs(relPath) && !startsOrIsDotDot(relPath) {
+//		return true, absParentPath, absChildPath, nil
+//	}
+//
+//	return false, "", "", nil
+//}
+//
+//// startsOrIsDotDot checks if the given path is ".." or starts with "../"
+//func startsOrIsDotDot(path string) bool {
+//	return path == ".." || filepath.HasPrefix(path, ".."+string(filepath.Separator))
+//}
+
+func buildParentPath(terraformPath string) string {
+	// Split the path into parts
+	parts := strings.Split(terraformPath, string(filepath.Separator))
+	var walkBack = ""
+	if len(parts) == 0 {
+		walkBack = "../"
+	} else {
+		for i := 0; i < len(parts); i++ {
+			walkBack += "../"
+		}
+	}
+	return strings.Trim(walkBack, "")
+
 }
