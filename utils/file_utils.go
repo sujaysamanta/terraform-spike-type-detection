@@ -136,6 +136,7 @@ func GetMap(filePaths []FilePath) (map[string][]string, error) {
 	return fileMap, nil
 }
 
+// TODO: Refactor this function to reduce code duplication
 func getWorkspaces(terraformPath string, gitPath string, fileMap map[string][]string) error {
 	if strings.Compare(terraformPath, gitPath) == 0 {
 		workspaces, err := cmd.GetWorkspaces()
@@ -168,7 +169,8 @@ func getWorkspaces(terraformPath string, gitPath string, fileMap map[string][]st
 		for _, workspace := range workspaces {
 			if workspace != "" {
 				workspace := gitPath + "_" + terraformPath + "_" + workspace
-				updateMap(fileMap, "terraform", workspace)
+				sanitizedWorkspace := strings.ReplaceAll(workspace, "/", "_")
+				updateMap(fileMap, "terraform", sanitizedWorkspace)
 			}
 		}
 		parentPath := buildParentPath(terraformPath)
